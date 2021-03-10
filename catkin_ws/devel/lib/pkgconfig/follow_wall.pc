@@ -1,7 +1,7 @@
 prefix=/home/anthony/coursework/CSCI573/CSCI573_Project2/catkin_ws/devel
 
-Name: stingray_sim
-Description: Description of stingray_sim
+Name: follow_wall
+Description: Description of follow_wall
 Version: 0.0.0
 Cflags: 
 Libs: -L${prefix}/lib 
