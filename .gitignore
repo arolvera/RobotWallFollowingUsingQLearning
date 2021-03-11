@@ -38,3 +38,6 @@ catkin_ws/build/*
 */cmake_install.cmake
 */Makefile
 */CMakeCache.txt
+
+# setup file
+stingray_setup.bash

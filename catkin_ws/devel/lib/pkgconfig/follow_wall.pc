@@ -1,4 +1,4 @@
-prefix=/home/anthony/coursework/CSCI573/CSCI573_Project2/catkin_ws/devel
+prefix=/home/anthony/Mines/CSCI573/project2/catkin_ws/devel
 
 Name: follow_wall
 Description: Description of follow_wall
