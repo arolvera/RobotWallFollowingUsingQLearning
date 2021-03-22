@@ -1,0 +1,8 @@
+prefix=/home/anthony/Mines/CSCI573/project2/catkin_ws/devel
+
+Name: follow_wall_sarsa
+Description: Description of follow_wall_sarsa
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

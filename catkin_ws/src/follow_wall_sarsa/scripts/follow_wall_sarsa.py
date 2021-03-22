@@ -1,12 +1,14 @@
 #!/usr/bin/env python
+import sys
 import rospy
 import math
 import random
-import numpy as np
 from qlearn import q_table
 from std_msgs.msg import String
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Pose2D 
+
+sys.dont_write_bytecode = True
 
 # Initialize qtable of all zeros df of shape (actions, states)
 # regions = ["left", "front", "right"] # where each consists of 3-5 distance zones except orientation
@@ -35,8 +37,6 @@ from geometry_msgs.msg import Pose2D
 # Define discount factor
 discount_factor = 0.9
 
-mindist_angle = None
-
 class State:
     def __init__(self, left=None, right=None, front=None):
         self.left = left
@@ -60,48 +60,48 @@ def Q_lookup(state):
     return "State does not exist"
 
 def scan_callback(data): # Get state from here 
-    mindist_angle = data
-    left = min(data.ranges[135:224])
-    front = min(data.ranges[45:134])
-    right = min(data.ranges[315:360] + data.ranges[0:44])
 
-    if left < 0.8:
+    left = min(data.ranges[45:134])
+    front = min(data.ranges[315:360] + data.ranges[0:44])
+    right = min(data.ranges[225:314])
+
+    if left < 0.7:
         state.left = "close"
-    elif 0.8 <= left <= 1.4:
+    elif 0.7 <= left <= 1.2:
         state.left = "medium"
     else:
         state.left = "far"
 
-    if front < 0.8:
+    if front < 0.7:
         state.front = "close"
-    elif 0.8 <= front <= 1.4:
+    elif 0.7 <= front <= 1.2:
         state.front = "medium"
     else:
         state.front = "far"
                         
-    if  right < 0.8:
+    if  right < 0.7:
         state.right = "close"
-    elif 0.8 <= right <= 1.4:
+    elif 0.7 <= right <= 1.2:
         state.right = "medium"
     else:
         state.right = "far"
     
-    # rosservice call /gazebo/get_model_state '{model_name: triton_lidar}'
+    # crosservice call /gazebo/get_model_state '{model_name: triton_lidar}'
 
 def execute_action(duration, action):
-    if action == "forward":           # Forward case
-        msg.x = 0.2
-    elif action == "left":         # Left case
-        msg.x = 0.2
-        msg.theta = math.pi/2
-    else:                     # Right case
-        msg.x = 0.2
+    if action == "forward":   # Forward case
+        msg.y = 0.3
+    elif action == "left":    # Left case
+        msg.y = 0.3
         msg.theta = -math.pi/2
+    else:                     # Right case
+        msg.y = 0.3
+        msg.theta = math.pi/2
     current_timestep = rospy.Time.now()
     future_timestep = current_timestep + duration
     while rospy.Time.now() < future_timestep:
         pub.publish(msg) # Take action for one timestep
-    msg.x = 0
+    msg.y = 0
     msg.theta = 0
     pub.publish(msg)
 
@@ -111,10 +111,10 @@ def execute_random_action(duration):
         msg.x = 0.3
     elif action == 1:         # Left case
         msg.x = 0.3
-        msg.theta = math.pi/3
+        msg.theta = math.pi/2
     else:                     # Right case
         msg.x = 0.3
-        msg.theta = -math.pi/3
+        msg.theta = -math.pi/2
     current_timestep = rospy.Time.now()
     future_timestep = current_timestep + duration
     while rospy.Time.now() < future_timestep:
@@ -128,19 +128,13 @@ def main():
     rospy.init_node('execute_action', anonymous=True)
     rate = rospy.Rate(20) # 20hz
     rospy.Subscriber("/scan", LaserScan, scan_callback)
-    timestep_duration = rospy.Duration(0.7) # One second
+    timestep_duration = rospy.Duration(0.5) # One half second
     # Observe initial state
 
     while not rospy.is_shutdown():
-        #action = execute_random_action(timestep_duration) # Take action
+        
         action = Q_lookup(state)
-        #rospy.loginfo("taking action: %s", action)
-        rospy.loginfo("state left: %s forward: %s right: %s", state.left, state.front, state.right)
         execute_action(timestep_duration, action)
-        # Get state
-        #reward = Q(state, action)
-
-    
         rate.sleep()
 
 if __name__ == '__main__':

@@ -1,4 +1,6 @@
+import sys
 # Q_table defined below
+sys.dont_write_bytecode = True
 
 q_table = {
     "left-close-front-close-right-close": {
