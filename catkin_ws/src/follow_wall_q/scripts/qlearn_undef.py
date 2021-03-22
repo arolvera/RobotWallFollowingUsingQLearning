@@ -41,7 +41,7 @@ q_table = {
     "left-close-front-far-right-medium": {
         "forward":0,
         "left":0,
-        "right":10
+        "right":0
     },
     "left-close-front-far-right-far": {
         "forward":0,
