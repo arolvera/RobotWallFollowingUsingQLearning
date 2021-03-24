@@ -265,18 +265,18 @@ def main():
             print "Max timestep since terminate:", max_timestep
             if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
                 terminate = True
-            elif time_step > 10000:  # No terminate in past 1000 timesteps
-                training_complete = True
-                f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/q_table.py","w")  # Write learned policy to file
-                f.write("q_table = " + str(q_table))
-                f.close()
-                print "Training Complete, q_table.py saved"
+            # elif time_step > 10000:  # No terminate in past 1000 timesteps
+            #     training_complete = True
+            #     f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/q_table.py","w")  # Write learned policy to file
+            #     f.write("q_table = " + str(q_table))
+            #     f.close()
+            #     print "Training Complete, q_table.py saved"
 
             time_step += 1
 
         episode_number += 1
         rate.sleep()
-        
+
     f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/q_table.py","w")  # Write learned policy to file
     f.write("q_table = " + str(q_table))
     f.close()
