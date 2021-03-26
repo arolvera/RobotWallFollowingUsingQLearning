@@ -36,10 +36,12 @@ sys.dont_write_bytecode = True
 # Q_table = dict.fromkeys(q_states , 0)
 
 class State:
-    def __init__(self, left=None, right=None, front=None):
+    def __init__(self, left=None, front=None, rightfront = None, right = None, orientation = None):
         self.left = left
         self.front = front
+        self.rightfront = rightfront
         self.right = right
+        self.orientation = orientation
 
 
 pose_x = 0
@@ -69,32 +71,48 @@ def reset_robot():
     msg_set_model_state.pose.orientation.w = 1
     pub_set_model_state.publish(msg_set_model_state)
 
-def rew(prior_state):  # return imediate reward for the state the robot is in
-    reward = 0
-    if prior_state.left == "close" or prior_state.front == "close" or prior_state.right == "close":
-        reward = 0
-    elif prior_state.left == "far" and prior_state.right == "far":
-        reward = 0
+def rew():  # return imediate reward for the state the robot is in
+    
+    # if prior_state.left == "close" or prior_state.front == "close" or prior_state.right == "close":
+    #     reward = 0
+    # elif prior_state.left == "far" and prior_state.right == "far":
+    #     reward = 0
+    # else:
+    #     reward = 100
+    # if state.left == "medium" or state.right == "medium":
+    #     reward = 100
+
+    if state.right == "tooclose" or state.right == "toofar" or state.front == "tooclose" or state.left == "close":
+        reward = -1
+    # if state.left == "close" or state.right == "close" or state.front == "close":
+    #     reward = -50
+    # if state.left == "far" and state.right == "far":
+    #    reward = -25
     else:
-        reward = 100
+        reward = 0
+
     return reward
 
 
 def update_q_table(discount_factor, learning_rate, action, reward, prior_state):
-    if prior_state.left != None and prior_state.front != None and prior_state.right != None:
-        state_index = "left-" + str(prior_state.left) + "-front-" + str(prior_state.front) + "-right-" + str(prior_state.right)
+    #print prior_state.left, prior_state.right, prior_state.front, prior_state.rightfront, prior_state.orientation
+    if prior_state.left != None and prior_state.front != None and prior_state.rightfront != None and prior_state.right != None and prior_state.orientation != None:
+        
+        state_index_prior = "left-" + str(prior_state.left) + "-front-" + str(prior_state.front) + "-rightfront-" + str(prior_state.rightfront) + "-right-" + str(prior_state.right) + "-orientation-" + str(prior_state.orientation)
+        state_index_current = "left-" + str(state.left) + "-front-" + str(state.front) + "-rightfront-" + str(state.rightfront) + "-right-" + str(state.right) + "-orientation-" + str(state.orientation)
         # if action == 0:
         #     action = "forward"
         # elif action == 1:
         #     action = "left"
         # else:
         #      action = "right"
-        q_table[state_index][action] = q_table[state_index][action] + learning_rate * (reward + discount_factor * max(q_table[state_index].values()) - q_table[state_index][action])
+        
+        q_table[state_index_prior][action] = q_table[state_index_prior][action] + learning_rate * (reward + discount_factor * max(q_table[state_index_current].values()) - q_table[state_index_prior][action])
+        
 
-
-def Q_lookup_action(state):
-    if state.left != None and state.right != None and state.right != None:
-        state_index =  "left-" + str(state.left) + "-front-" + str(state.front) + "-right-" + str(state.right)
+def Q_lookup_action(prior_state):
+    if prior_state.left != None and prior_state.right != None  and prior_state.rightfront != None and prior_state.right != None and prior_state.orientation != None:
+        state_index =  "left-" + str(prior_state.left) + "-front-" + str(prior_state.front) + "-rightfront-" + str(prior_state.rightfront) + "-right-" + str(prior_state.right) + "-orientation-" + str(prior_state.orientation)
         if q_table[state_index]["left"] != q_table[state_index]["forward"] != q_table[state_index]["right"]:
             return max(q_table[state_index], key=q_table[state_index].get) # return action with highest reward
         else:
@@ -102,9 +120,9 @@ def Q_lookup_action(state):
     return "State does not exist"
 
 
-def Q_lookup_reward(state):
-    if state.left != None and state.right != None and state.right != None:
-        state_index = "left-" + str(state.left) + "-front-" + str(state.front) + "-right-" + str(state.right)
+def Q_lookup_reward(prior_state):
+    if prior_state.left != None and prior_state.right != None and prior_state.rightfront != None and prior_state.right != None and prior_state.orientation != None:
+        state_index = "left-" + str(prior_state.left) + "-front-" + str(prior_state.front) + "-rightfront-" + str(prior_state.rightfront) + "-right-" + str(prior_state.right) + "-orientation-" + str(prior_state.orientation)
         if q_table[state_index]["left"] != q_table[state_index]["forward"] != q_table[state_index]["right"]:
             return max(q_table[state_index].values())  # return highest reward for a given state
         else:
@@ -113,30 +131,72 @@ def Q_lookup_reward(state):
 
 
 def scan_callback(data):  # Get state from here
-    left = min(data.ranges[158:202]) 
-    front = min(data.ranges[68:112])
-    right = min(data.ranges[338:360] + data.ranges[0:22])
-    if left < 0.7:
+    left = min(data.ranges[150:210]) 
+    front = min(data.ranges[60:120])
+    rightfront = min(data.ranges[30:60])
+    right = min(data.ranges[345:360] + data.ranges[0:15])
+    min_range_angle = data.ranges.index(min(data.ranges))
+
+    if left <= 0.5:
         state.left = "close"
-    elif 0.7 <= left <= 1.2:
-        state.left = "medium"
     else:
         state.left = "far"
 
-    if front < 0.7:
+    if front < 0.5:
+        state.front = "tooclose"
+    elif 0.5 <= front < 0.6:
         state.front = "close"
-    elif 0.7 <= front <= 1.2:
+    elif 0.6 <= front < 1.2:
         state.front = "medium"
     else:
         state.front = "far"
 
-    if right < 0.7:
-        state.right = "close"
-    elif 0.7 <= right <= 1.2:
-        state.right = "medium"
+    if rightfront <= 1.2:
+        state.rightfront = "close" 
     else:
+        state.rightfront = "far"
+
+    if right < 0.5:
+        state.right = "tooclose"
+    elif 0.5 <= right < 0.6:
+        state.right = "close"
+    elif 0.6 <= right <= 0.8:
+        state.right = "medium"
+    elif 0.8 <= right <= 1.2:
         state.right = "far"
-    state_index = "left-" + str(state.left) + "-front-" + str(state.front) + "-right-" + str(state.right)
+    else:
+        state.right = "toofar"
+
+    if  180 > min_range_angle > 5:
+        state.orientation = "approaching"
+    elif 180 < min_range_angle < 355:
+        state.orientation = "leaving"
+    elif 0 <= min_range_angle <=5 or 355 <= min_range_angle <= 360:
+        state.orientation = "parallel"
+    else:
+        state.orientation = "undefined"
+
+    # if left <= 0.5:
+    #     state.left = "close"
+    # elif 0.7 <= left <= 1.2:
+    #     state.left = "medium"
+    # else:
+    #     state.left = "far"
+
+    # if front < 0.7:
+    #     state.front = "close"
+    # elif 0.7 <= front <= 1.2:
+    #     state.front = "medium"
+    # else:
+    #     state.front = "far"
+
+    # if right < 0.7:
+    #     state.right = "close"
+    # elif 0.7 <= right <= 1.2:
+    #     state.right = "medium"
+    # else:
+    #     state.right = "far"
+    #state_index = "left-" + str(state.left) + "-front-" + str(state.front) + "-right-" + str(state.right)
 
 def pose_callback(data):
     global pose_x
@@ -152,10 +212,10 @@ def execute_action(duration, action):
         msg_vel_cmd.y = 0.3
     elif action == "left":  # Left case
         msg_vel_cmd.y = 0.3
-        msg_vel_cmd.theta = math.pi / 2
+        msg_vel_cmd.theta = math.pi / 4
     else:  # Right case
         msg_vel_cmd.y = 0.3
-        msg_vel_cmd.theta = -math.pi / 2
+        msg_vel_cmd.theta = -math.pi / 4
     current_timestep = rospy.Time.now()
     future_timestep = current_timestep + duration
     while rospy.Time.now() < future_timestep:
@@ -172,11 +232,11 @@ def execute_random_action(duration):
     elif action == 1:  # Left case
         action = "left"
         msg_vel_cmd.y = 0.3
-        msg_vel_cmd.theta = math.pi / 2
+        msg_vel_cmd.theta = math.pi / 4
     else:  # Right case
         action = "right"
         msg_vel_cmd.y = 0.3
-        msg_vel_cmd.theta = -math.pi / 2
+        msg_vel_cmd.theta = -math.pi / 4
     current_timestep = rospy.Time.now()
     future_timestep = current_timestep + duration
     while rospy.Time.now() < future_timestep:
@@ -193,10 +253,10 @@ def execute_exploited_action(duration, prior_state):
         msg_vel_cmd.y = 0.3
     elif action == "left":  # Left case
         msg_vel_cmd.y = 0.3
-        msg_vel_cmd.theta = math.pi / 2
+        msg_vel_cmd.theta = math.pi / 4
     else:  # Right case
         msg_vel_cmd.y = 0.3
-        msg_vel_cmd.theta = -math.pi / 2
+        msg_vel_cmd.theta = -math.pi / 4
     current_timestep = rospy.Time.now()
     future_timestep = current_timestep + duration
     while rospy.Time.now() < future_timestep:
@@ -208,18 +268,17 @@ def execute_exploited_action(duration, prior_state):
 
 
 def main():
+
     max_timestep = 0
     discount_factor = 0.8
     learning_rate = 0.2
-    epsilon_0 = 0.95
-    d = 0.995
+    epsilon_0 = 0.99
+    d = 0.99
     episode_number = 0
     time_step = 0
     stuck_buffer_size = 3
     training_complete = False
     prior_state = State()
-    prior_poses_y = [0, 0, 0]
-    prior_poses_x = [0, 0, 0]
     rospy.init_node("follow_wall_q", anonymous=True)
     rate = rospy.Rate(20)  # 20hz
     rospy.Subscriber("/scan", LaserScan, scan_callback)
@@ -235,27 +294,34 @@ def main():
     while not rospy.is_shutdown() and not training_complete:  # Main loop
         terminate = False
         reset_robot()  # Reset robot pose
+        prior_poses_y = [0, 0, 0]
+        prior_poses_x = [0, 0, 0]
         timesteps_since_terminate = 0
+        #execute_exploited_action(timestep_duration, state)
         while not terminate and not training_complete:  # Episode loop
             
             r = random.uniform(0, 1)
             print "\n"
-            print "Timestep is:", time_step
+            print "Timestep is:", time_step, "Episode is:", episode_number
             print "\n"
-            print "Current state is:", " left =", state.left, ", front =", state.front, ", right =", state.right
+            print "Current state is:", " left =", state.left, ", front =", state.front, ", rightfront = ", state.rightfront, ", right =", state.right, ", orientation =", state.orientation
             prior_state.left = state.left
             prior_state.right = state.right
             prior_state.front = state.front
+            prior_state.rightfront = state.rightfront
+            prior_state.orientation = state.orientation
             prior_poses_x[time_step % stuck_buffer_size] = pose_x
             prior_poses_y[time_step % stuck_buffer_size] = pose_y
-            epsilon = epsilon_0 * d ** episode_number
+            epsilon = epsilon_0 * (d ** episode_number)
+           
             if r > epsilon:  # Exploit
                 action = execute_exploited_action(timestep_duration, prior_state)
                 timesteps_since_terminate += 1
             else:  # Explore
                 action = execute_random_action(timestep_duration)
                 timesteps_since_terminate += 1
-            reward = rew(prior_state)  # Receive imediate reward r
+            reward = rew()#prior_state)  # Receive imediate reward r
+            
             update_q_table(discount_factor, learning_rate, action, reward, prior_state)
             print "\n"
             print "Epsilon is", epsilon
@@ -265,21 +331,17 @@ def main():
             print "Max timestep since terminate:", max_timestep
             if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
                 terminate = True
-            # elif time_step > 10000:  # No terminate in past 1000 timesteps
-            #     training_complete = True
-            #     f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/q_table.py","w")  # Write learned policy to file
-            #     f.write("q_table = " + str(q_table))
-            #     f.close()
-            #     print "Training Complete, q_table.py saved"
+            elif time_step > 30000:  # No terminate in past 1000 timesteps
+                training_complete = True
+                f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/q_table.py","w")  # Write learned policy to file
+                f.write("q_table = " + str(q_table))
+                f.close()
+                print "Training Complete, q_table.py saved"
 
             time_step += 1
 
         episode_number += 1
         rate.sleep()
-
-    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/q_table.py","w")  # Write learned policy to file
-    f.write("q_table = " + str(q_table))
-    f.close()
 
 if __name__ == "__main__":
     try:
