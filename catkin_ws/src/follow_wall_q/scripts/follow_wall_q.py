@@ -10,46 +10,52 @@ from geometry_msgs.msg import Pose2D
 
 sys.dont_write_bytecode = True
 
-states_left = [
-    "left-close", 
-    "left-far"
-] 
+train = False # Set true for training
 
-states_front = [ 
-    "front-tooclose", 
-    "front-close", 
-    "front-medium", 
-    "front-far"
-] 
+if train:
+    states_left = [
+        "left-close", 
+        "left-far"
+    ] 
 
-states_rightfront = [
-    "rightfront-close", 
-    "rightfront-far"
-]
+    states_front = [ 
+        "front-tooclose", 
+        "front-close", 
+        "front-medium", 
+        "front-far"
+    ] 
 
-states_right = [
-    "right-tooclose",
-    "right-close",  
-    "right-medium", 
-    "right-far", 
-    "right-toofar"
-]
+    states_rightfront = [
+        "rightfront-close", 
+        "rightfront-far"
+    ]
 
-states_orientation = [
-    "orientation-approaching",
-    "orientation-parallel",
-    "orientation-leaving",
-    "orientation-undefined"
-]
+    states_right = [
+        "right-tooclose",
+        "right-close",  
+        "right-medium", 
+        "right-far", 
+        "right-toofar"
+    ]
 
-q_table = {}
+    states_orientation = [
+        "orientation-approaching",
+        "orientation-parallel",
+        "orientation-leaving",
+        "orientation-undefined"
+    ]
 
-for statel in states_left: # Make q_table initialized with all zeros
-    for statef in states_front:
-        for staterf in states_rightfront:
-            for stater in states_right:
-                for stateo in states_orientation:
-                    q_table[statel + "-" + statef + "-" + staterf + "-" + stater + "-" + stateo] = {"left": 0, "forward": 0, "right": 0}
+    q_table = {}
+
+    for statel in states_left: # Make q_table initialized with all zeros
+        for statef in states_front:
+            for staterf in states_rightfront:
+                for stater in states_right:
+                    for stateo in states_orientation:
+                        q_table[statel + "-" + statef + "-" + staterf + "-" + stater + "-" + stateo] = {"left": 0, "forward": 0, "right": 0}
+
+else:
+    from qtable_q import q_table
 
 class State:
     def __init__(self, left=None, front=None, rightfront = None, right = None, orientation = None):
@@ -257,46 +263,47 @@ def main():
         prior_poses_y = [0, 0, 0]
         prior_poses_x = [0, 0, 0]
         timesteps_since_terminate = 0
-        while not terminate and not training_complete:  # Episode loop            
-            r = random.uniform(0, 1)
-            print "\n"
-            print "Timestep is:", time_step, "Episode is:", episode_number
-            print "\n"
-            print "Current state is:", " left =", state.left, ", front =", state.front, ", rightfront = ", state.rightfront, ", right =", state.right, ", orientation =", state.orientation
-            prior_state.left = state.left
-            prior_state.right = state.right
-            prior_state.front = state.front
-            prior_state.rightfront = state.rightfront
-            prior_state.orientation = state.orientation
-            prior_poses_x[time_step % stuck_buffer_size] = pose_x
-            prior_poses_y[time_step % stuck_buffer_size] = pose_y
-            epsilon = epsilon_0 * (d ** episode_number)
-           
-            if r > epsilon:  # Exploit
-                action = execute_exploited_action(timestep_duration, prior_state)
-                timesteps_since_terminate += 1
-            else:            # Explore
-                action = execute_random_action(timestep_duration)
-                timesteps_since_terminate += 1
-            reward = rew()   # Receive immediate reward r
-            
-            update_q_table(discount_factor, learning_rate, action, reward, prior_state)
-            print "\n"
-            print "Epsilon is", epsilon
-            if timesteps_since_terminate > max_timestep:
-                max_timestep = timesteps_since_terminate
-            print "\n"
-            print "Max timestep since terminate:", max_timestep
-            if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
-                terminate = True
-            elif time_step > 30000:  # No terminate in past 1000 timesteps
-                training_complete = True
-                f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/qtable_q.py","w")  # Write learned policy to file
-                f.write("q_table = " + str(q_table))
-                f.close()
-                print "Training Complete, qtable_q.py saved"
+        while not terminate and not training_complete:  # Episode loop    
+            if train:        
+                r = random.uniform(0, 1)
+                print "\n"
+                print "Timestep is:", time_step, "Episode is:", episode_number
+                print "\n"
+                print "Current state is:", " left =", state.left, ", front =", state.front, ", rightfront = ", state.rightfront, ", right =", state.right, ", orientation =", state.orientation
+                prior_state.left = state.left
+                prior_state.right = state.right
+                prior_state.front = state.front
+                prior_state.rightfront = state.rightfront
+                prior_state.orientation = state.orientation
+                prior_poses_x[time_step % stuck_buffer_size] = pose_x
+                prior_poses_y[time_step % stuck_buffer_size] = pose_y
+                epsilon = epsilon_0 * (d ** episode_number)
+                if r > epsilon:  # Exploit
+                    action = execute_exploited_action(timestep_duration, prior_state)
+                    timesteps_since_terminate += 1
+                else:            # Explore
+                    action = execute_random_action(timestep_duration)
+                    timesteps_since_terminate += 1
+                reward = rew()   # Receive immediate reward r
+                update_q_table(discount_factor, learning_rate, action, reward, prior_state)
+                print "\n"
+                print "Epsilon is", epsilon
+                if timesteps_since_terminate > max_timestep:
+                    max_timestep = timesteps_since_terminate
+                print "\n"
+                print "Max timestep since terminate:", max_timestep
+                if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
+                    terminate = True
+                elif time_step > 30000:  # No terminate in past 1000 timesteps
+                    training_complete = True
+                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/qtable_q.py","w")  # Write learned policy to file
+                    f.write("q_table = " + str(q_table))
+                    f.close()
+                    print "Training Complete, qtable_q.py saved"
 
-            time_step += 1
+                time_step += 1
+            else:
+                execute_exploited_action(timestep_duration, state)
 
         episode_number += 1
         rate.sleep()
