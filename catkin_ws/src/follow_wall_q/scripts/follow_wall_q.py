@@ -11,30 +11,6 @@ from geometry_msgs.msg import Pose2D
 
 sys.dont_write_bytecode = True
 
-# Initialize qtable of all zeros df of shape (actions, states)
-# regions = ["left", "front", "right"] # where each consists of 3-5 distance zones except orientation
-# distances = ["close","medium","far"]
-# actions = ["forward", "left", "right"]
-
-# region_distance = []
-# region_distance3 = []
-# q_states = []
-# for region in regions:
-#     for distance in distances:
-#         region_distance.append(region + "-" + distance)
-
-# for rd in region_distance:
-#     for rd_rd in region_distance:
-#         for rd_rd_rd in region_distance:
-#             if rd[0] != rd_rd[0] and rd[0] != rd_rd_rd[0] and rd_rd[0] != rd_rd_rd[0]:
-#                 region_distance3.append(rd + "-" + rd_rd + "-" + rd_rd_rd)
-
-# for rd_rd_rd in region_distance3:
-#     for action in actions:
-#         q_states.append(rd_rd_rd + "-" + action)
-
-# Q_table = dict.fromkeys(q_states , 0)
-
 class State:
     def __init__(self, left=None, front=None, rightfront = None, right = None, orientation = None):
         self.left = left
@@ -71,45 +47,19 @@ def reset_robot():
     msg_set_model_state.pose.orientation.w = 1
     pub_set_model_state.publish(msg_set_model_state)
 
-def rew():  # return imediate reward for the state the robot is in
-    
-    # if prior_state.left == "close" or prior_state.front == "close" or prior_state.right == "close":
-    #     reward = 0
-    # elif prior_state.left == "far" and prior_state.right == "far":
-    #     reward = 0
-    # else:
-    #     reward = 100
-    # if state.left == "medium" or state.right == "medium":
-    #     reward = 100
-
+def rew():  # Return immediate reward for the state the robot is in
     if state.right == "tooclose" or state.right == "toofar" or state.front == "tooclose" or state.left == "close":
         reward = -1
-    # if state.left == "close" or state.right == "close" or state.front == "close":
-    #     reward = -50
-    # if state.left == "far" and state.right == "far":
-    #    reward = -25
     else:
         reward = 0
-
     return reward
 
-
-def update_q_table(discount_factor, learning_rate, action, reward, prior_state):
-    #print prior_state.left, prior_state.right, prior_state.front, prior_state.rightfront, prior_state.orientation
+def update_q_table(discount_factor, learning_rate, action, reward, prior_state): 
     if prior_state.left != None and prior_state.front != None and prior_state.rightfront != None and prior_state.right != None and prior_state.orientation != None:
-        
         state_index_prior = "left-" + str(prior_state.left) + "-front-" + str(prior_state.front) + "-rightfront-" + str(prior_state.rightfront) + "-right-" + str(prior_state.right) + "-orientation-" + str(prior_state.orientation)
-        state_index_current = "left-" + str(state.left) + "-front-" + str(state.front) + "-rightfront-" + str(state.rightfront) + "-right-" + str(state.right) + "-orientation-" + str(state.orientation)
-        # if action == 0:
-        #     action = "forward"
-        # elif action == 1:
-        #     action = "left"
-        # else:
-        #      action = "right"
-        
+        state_index_current = "left-" + str(state.left) + "-front-" + str(state.front) + "-rightfront-" + str(state.rightfront) + "-right-" + str(state.right) + "-orientation-" + str(state.orientation)        
         q_table[state_index_prior][action] = q_table[state_index_prior][action] + learning_rate * (reward + discount_factor * max(q_table[state_index_current].values()) - q_table[state_index_prior][action])
         
-
 def Q_lookup_action(prior_state):
     if prior_state.left != None and prior_state.right != None  and prior_state.rightfront != None and prior_state.right != None and prior_state.orientation != None:
         state_index =  "left-" + str(prior_state.left) + "-front-" + str(prior_state.front) + "-rightfront-" + str(prior_state.rightfront) + "-right-" + str(prior_state.right) + "-orientation-" + str(prior_state.orientation)
@@ -119,7 +69,6 @@ def Q_lookup_action(prior_state):
             return random.choice(list(q_table[state_index].keys()))
     return "State does not exist"
 
-
 def Q_lookup_reward(prior_state):
     if prior_state.left != None and prior_state.right != None and prior_state.rightfront != None and prior_state.right != None and prior_state.orientation != None:
         state_index = "left-" + str(prior_state.left) + "-front-" + str(prior_state.front) + "-rightfront-" + str(prior_state.rightfront) + "-right-" + str(prior_state.right) + "-orientation-" + str(prior_state.orientation)
@@ -128,7 +77,6 @@ def Q_lookup_reward(prior_state):
         else:
             return random.choice(list(q_table[state_index].values()))
     return "State does not exist"
-
 
 def scan_callback(data):  # Get state from here
     left = min(data.ranges[150:210]) 
@@ -176,28 +124,6 @@ def scan_callback(data):  # Get state from here
     else:
         state.orientation = "undefined"
 
-    # if left <= 0.5:
-    #     state.left = "close"
-    # elif 0.7 <= left <= 1.2:
-    #     state.left = "medium"
-    # else:
-    #     state.left = "far"
-
-    # if front < 0.7:
-    #     state.front = "close"
-    # elif 0.7 <= front <= 1.2:
-    #     state.front = "medium"
-    # else:
-    #     state.front = "far"
-
-    # if right < 0.7:
-    #     state.right = "close"
-    # elif 0.7 <= right <= 1.2:
-    #     state.right = "medium"
-    # else:
-    #     state.right = "far"
-    #state_index = "left-" + str(state.left) + "-front-" + str(state.front) + "-right-" + str(state.right)
-
 def pose_callback(data):
     global pose_x
     global pose_y
@@ -205,7 +131,6 @@ def pose_callback(data):
     pose_x = data.pose[1].position.x
     pose_y = data.pose[1].position.y
     pose_z = data.pose[1].position.z
-
 
 def execute_action(duration, action):
     if action == "forward":  # Forward case
@@ -246,7 +171,6 @@ def execute_random_action(duration):
     pub_vel_cmd.publish(msg_vel_cmd)
     return action
 
-
 def execute_exploited_action(duration, prior_state):
     action = Q_lookup_action(prior_state)
     if action == "forward":  # Forward case
@@ -266,9 +190,7 @@ def execute_exploited_action(duration, prior_state):
     pub_vel_cmd.publish(msg_vel_cmd)
     return action
 
-
 def main():
-
     max_timestep = 0
     discount_factor = 0.8
     learning_rate = 0.2
@@ -285,9 +207,8 @@ def main():
     rospy.Subscriber("/gazebo/model_states", ModelStates, pose_callback)
     timestep_duration = rospy.Duration(0.5)  # One half second
      
-    # need a short delay
     i = 0
-    while i < 100:
+    while i < 100: # Need a short delay
         i += 1
         rate.sleep()
 
@@ -297,9 +218,7 @@ def main():
         prior_poses_y = [0, 0, 0]
         prior_poses_x = [0, 0, 0]
         timesteps_since_terminate = 0
-        #execute_exploited_action(timestep_duration, state)
-        while not terminate and not training_complete:  # Episode loop
-            
+        while not terminate and not training_complete:  # Episode loop            
             r = random.uniform(0, 1)
             print "\n"
             print "Timestep is:", time_step, "Episode is:", episode_number
@@ -317,10 +236,10 @@ def main():
             if r > epsilon:  # Exploit
                 action = execute_exploited_action(timestep_duration, prior_state)
                 timesteps_since_terminate += 1
-            else:  # Explore
+            else:            # Explore
                 action = execute_random_action(timestep_duration)
                 timesteps_since_terminate += 1
-            reward = rew()#prior_state)  # Receive imediate reward r
+            reward = rew()   # Receive immediate reward r
             
             update_q_table(discount_factor, learning_rate, action, reward, prior_state)
             print "\n"
