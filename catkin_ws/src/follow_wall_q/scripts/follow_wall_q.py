@@ -3,13 +3,53 @@ import sys
 import rospy
 import math
 import random
-from qlearn_undef import q_table
 from std_msgs.msg import String
 from sensor_msgs.msg import LaserScan
 from gazebo_msgs.msg import ModelState, ModelStates
 from geometry_msgs.msg import Pose2D
 
 sys.dont_write_bytecode = True
+
+states_left = [
+    "left-close", 
+    "left-far"
+] 
+
+states_front = [ 
+    "front-tooclose", 
+    "front-close", 
+    "front-medium", 
+    "front-far"
+] 
+
+states_rightfront = [
+    "rightfront-close", 
+    "rightfront-far"
+]
+
+states_right = [
+    "right-tooclose",
+    "right-close",  
+    "right-medium", 
+    "right-far", 
+    "right-toofar"
+]
+
+states_orientation = [
+    "orientation-approaching",
+    "orientation-parallel",
+    "orientation-leaving",
+    "orientation-undefined"
+]
+
+q_table = {}
+
+for statel in states_left: # Make q_table initialized with all zeros
+    for statef in states_front:
+        for staterf in states_rightfront:
+            for stater in states_right:
+                for stateo in states_orientation:
+                    q_table[statel + "-" + statef + "-" + staterf + "-" + stater + "-" + stateo] = {"left": 0, "forward": 0, "right": 0}
 
 class State:
     def __init__(self, left=None, front=None, rightfront = None, right = None, orientation = None):
@@ -18,7 +58,6 @@ class State:
         self.rightfront = rightfront
         self.right = right
         self.orientation = orientation
-
 
 pose_x = 0
 pose_y = 0
@@ -252,10 +291,10 @@ def main():
                 terminate = True
             elif time_step > 30000:  # No terminate in past 1000 timesteps
                 training_complete = True
-                f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/q_table.py","w")  # Write learned policy to file
+                f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/qtable_q.py","w")  # Write learned policy to file
                 f.write("q_table = " + str(q_table))
                 f.close()
-                print "Training Complete, q_table.py saved"
+                print "Training Complete, qtable_q.py saved"
 
             time_step += 1
 
