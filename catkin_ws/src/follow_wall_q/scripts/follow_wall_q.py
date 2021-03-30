@@ -10,7 +10,11 @@ from geometry_msgs.msg import Pose2D
 
 sys.dont_write_bytecode = True
 
-train = False # Set true for training
+args = rospy.myargv(argv=sys.argv)
+if str(args[1]) == "True":
+    train = True
+else:
+    train = False
 
 if train:
     states_left = [
@@ -263,6 +267,7 @@ def main():
         prior_poses_y = [0, 0, 0]
         prior_poses_x = [0, 0, 0]
         timesteps_since_terminate = 0
+        r1 = random.uniform(0, 1)
         while not terminate and not training_complete:  # Episode loop    
             if train:        
                 r = random.uniform(0, 1)
@@ -294,7 +299,7 @@ def main():
                 print "Max timestep since terminate:", max_timestep
                 if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
                     terminate = True
-                elif time_step > 30000:  # No terminate in past 1000 timesteps
+                elif timesteps_since_terminate > 3000:  # No terminate in past 1000 timesteps
                     training_complete = True
                     f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/qtable_q.py","w")  # Write learned policy to file
                     f.write("q_table = " + str(q_table))

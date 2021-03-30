@@ -10,46 +10,55 @@ from geometry_msgs.msg import Pose2D
 
 sys.dont_write_bytecode = True
 
-states_left = [
-    "left-close", 
-    "left-far"
-] 
+args = rospy.myargv(argv=sys.argv)
+if str(args[1]) == "True":
+    train = True
+else:
+    train = False
 
-states_front = [ 
-    "front-tooclose", 
-    "front-close", 
-    "front-medium", 
-    "front-far"
-] 
+if train:    
+    states_left = [
+        "left-close", 
+        "left-far"
+    ] 
 
-states_rightfront = [
-    "rightfront-close", 
-    "rightfront-far"
-]
+    states_front = [ 
+        "front-tooclose", 
+        "front-close", 
+        "front-medium", 
+        "front-far"
+    ] 
 
-states_right = [
-    "right-tooclose",
-    "right-close",  
-    "right-medium", 
-    "right-far", 
-    "right-toofar"
-]
+    states_rightfront = [
+        "rightfront-close", 
+        "rightfront-far"
+    ]
 
-states_orientation = [
-    "orientation-approaching",
-    "orientation-parallel",
-    "orientation-leaving",
-    "orientation-undefined"
-]
+    states_right = [
+        "right-tooclose",
+        "right-close",  
+        "right-medium", 
+        "right-far", 
+        "right-toofar"
+    ]
 
-q_table = {}
+    states_orientation = [
+        "orientation-approaching",
+        "orientation-parallel",
+        "orientation-leaving",
+        "orientation-undefined"
+    ]
 
-for statel in states_left: # Make q_table initialized with all zeros
-    for statef in states_front:
-        for staterf in states_rightfront:
-            for stater in states_right:
-                for stateo in states_orientation:
-                    q_table[statel + "-" + statef + "-" + staterf + "-" + stater + "-" + stateo] = {"left": 0, "forward": 0, "right": 0}
+    q_table = {}
+
+    for statel in states_left: # Make q_table initialized with all zeros
+        for statef in states_front:
+            for staterf in states_rightfront:
+                for stater in states_right:
+                    for stateo in states_orientation:
+                        q_table[statel + "-" + statef + "-" + staterf + "-" + stater + "-" + stateo] = {"left": 0, "forward": 0, "right": 0}
+else:
+    from qtable_sarsa import q_table
 
 class State:
     def __init__(self, left=None, front=None, rightfront = None, right = None, orientation = None):
@@ -93,11 +102,11 @@ def rew():  # Return immediate reward for the state the robot is in
         reward = 0
     return reward
 
-def update_q_table(discount_factor, learning_rate, action, reward, prior_state): 
+def update_q_table(discount_factor, learning_rate, action1, action2, reward, prior_state): 
     if prior_state.left != None and prior_state.front != None and prior_state.rightfront != None and prior_state.right != None and prior_state.orientation != None:
         state_index_prior = "left-" + str(prior_state.left) + "-front-" + str(prior_state.front) + "-rightfront-" + str(prior_state.rightfront) + "-right-" + str(prior_state.right) + "-orientation-" + str(prior_state.orientation)
         state_index_current = "left-" + str(state.left) + "-front-" + str(state.front) + "-rightfront-" + str(state.rightfront) + "-right-" + str(state.right) + "-orientation-" + str(state.orientation)        
-        q_table[state_index_prior][action] = q_table[state_index_prior][action] + learning_rate * (reward + discount_factor * max(q_table[state_index_current].values()) - q_table[state_index_prior][action])
+        q_table[state_index_prior][action1] = q_table[state_index_prior][action1] + learning_rate * (reward + discount_factor * q_table[state_index_current][action2] - q_table[state_index_prior][action1])
         
 def Q_lookup_action(prior_state):
     if prior_state.left != None and prior_state.right != None  and prior_state.rightfront != None and prior_state.right != None and prior_state.orientation != None:
@@ -234,10 +243,12 @@ def main():
     discount_factor = 0.8
     learning_rate = 0.2
     epsilon_0 = 0.99
+    epsilon_sarsa = 0.9
     d = 0.99
     episode_number = 0
     time_step = 0
     stuck_buffer_size = 3
+    actions = ["left", "forward", "right"]
     training_complete = False
     prior_state = State()
     rospy.init_node("follow_wall_q", anonymous=True)
@@ -256,47 +267,53 @@ def main():
         reset_robot()  # Reset robot pose
         prior_poses_y = [0, 0, 0]
         prior_poses_x = [0, 0, 0]
-        timesteps_since_terminate = 0
-        while not terminate and not training_complete:  # Episode loop            
-            r = random.uniform(0, 1)
-            print "\n"
-            print "Timestep is:", time_step, "Episode is:", episode_number
-            print "\n"
-            print "Current state is:", " left =", state.left, ", front =", state.front, ", rightfront = ", state.rightfront, ", right =", state.right, ", orientation =", state.orientation
-            prior_state.left = state.left
-            prior_state.right = state.right
-            prior_state.front = state.front
-            prior_state.rightfront = state.rightfront
-            prior_state.orientation = state.orientation
-            prior_poses_x[time_step % stuck_buffer_size] = pose_x
-            prior_poses_y[time_step % stuck_buffer_size] = pose_y
-            epsilon = epsilon_0 * (d ** episode_number)
-           
-            if r > epsilon:  # Exploit
-                action = execute_exploited_action(timestep_duration, prior_state)
-                timesteps_since_terminate += 1
-            else:            # Explore
-                action = execute_random_action(timestep_duration)
-                timesteps_since_terminate += 1
-            reward = rew()   # Receive immediate reward r
-            
-            update_q_table(discount_factor, learning_rate, action, reward, prior_state)
-            print "\n"
-            print "Epsilon is", epsilon
-            if timesteps_since_terminate > max_timestep:
-                max_timestep = timesteps_since_terminate
-            print "\n"
-            print "Max timestep since terminate:", max_timestep
-            if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
-                terminate = True
-            elif timesteps_since_terminate > 3000:  # No terminate in past 3000 timesteps
-                training_complete = True
-                f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/qtable_sarsa.py", "w")  # Write learned policy to file
-                f.write("q_table = " + str(q_table))
-                f.close()
-                print "Training Complete, qtable_sarsa.py saved"
+        timesteps_since_terminate = 0      
+        if random.uniform(0, 1) < epsilon_sarsa or train == False: # Exploit: choose best action
+            action1 = Q_lookup_action(state)
+        else: # Explore: pick random action
+            action1 = random.choice(actions)  
+        while not terminate and not training_complete:  # Episode loop  
+            if train:          
+                print "\n"
+                print "Timestep is:", time_step, "Episode is:", episode_number
+                print "\n"
+                print "Current state is:", " left =", state.left, ", front =", state.front, ", rightfront = ", state.rightfront, ", right =", state.right, ", orientation =", state.orientation
+                prior_state.left = state.left
+                prior_state.right = state.right
+                prior_state.front = state.front
+                prior_state.rightfront = state.rightfront
+                prior_state.orientation = state.orientation
+                prior_poses_x[time_step % stuck_buffer_size] = pose_x
+                prior_poses_y[time_step % stuck_buffer_size] = pose_y
+                epsilon = epsilon_0 * (d ** episode_number)
+                execute_action(timestep_duration, action1)
+                reward = rew()   # Receive immediate reward r
+                if random.uniform(0, 1) > epsilon:  # Exploit
+                    action2 = Q_lookup_action(state)# dont execute action
+                    timesteps_since_terminate += 1
+                else:            # Explore
+                    action2 = random.choice(actions)
+                    timesteps_since_terminate += 1
+                update_q_table(discount_factor, learning_rate, action1, action2, reward, prior_state)
+                action1 = action2
+                print "\n"
+                print "Epsilon is", epsilon
+                if timesteps_since_terminate > max_timestep:
+                    max_timestep = timesteps_since_terminate
+                print "\n"
+                print "Max timestep since terminate:", max_timestep
+                if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
+                    terminate = True
+                elif time_step > 30000:#timesteps_since_terminate > 3000:  # No terminate in past 3000 timesteps
+                    training_complete = True
+                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_sarsa/scripts/qtable_sarsa.py", "w")  # Write learned policy to file
+                    f.write("q_table = " + str(q_table))
+                    f.close()
+                    print "Training Complete, qtable_sarsa.py saved"
 
-            time_step += 1
+                time_step += 1
+            else:
+                execute_exploited_action(timestep_duration, state)
 
         episode_number += 1
         rate.sleep()
@@ -306,44 +323,3 @@ if __name__ == "__main__":
         main()
     except rospy.ROSInterruptException:
         pass
-
-
-        # while not rospy.is_shutdown() and not training_complete:  # Main loop
-        # terminate = False
-        # reset_robot()  # Reset robot pose
-        # prior_poses_y = [0, 0, 0]
-        # prior_poses_x = [0, 0, 0]
-        # timesteps_since_terminate = 0
-        # r1 = random.uniform(0, 1)
-        
-        # if r1 < epsilon_sarsa: # Exploit: choose best action
-        #     action = Q_lookup_action(state)
-        # else: # Explore: pick random action
-        #     action = random.choice(actions)
-
-        # while not terminate and not training_complete:  # Episode loop
-            
-        #     r2 = random.uniform(0, 1)
-        #     print "\n"
-        #     print "Timestep is:", time_step, "Episode is:", episode_number
-        #     print "\n"
-        #     print "Current state is:", " left =", state.left, ", front =", state.front, ", right =", state.right
-        #     prior_state.left = state.left
-        #     prior_state.right = state.right
-        #     prior_state.front = state.front
-        #     prior_poses_x[time_step % stuck_buffer_size] = pose_x
-        #     prior_poses_y[time_step % stuck_buffer_size] = pose_y
-        #     epsilon = epsilon_0 * (d ** episode_number)
-        #     execute_action(timestep_duration, action)
-            
-        #     # if r > epsilon:  # Exploit
-        #     #     action = execute_exploited_action(timestep_duration, prior_state)
-        #     #     timesteps_since_terminate += 1
-        #     # else:  # Explore
-        #     #     action = execute_random_action(timestep_duration)
-        #     #     timesteps_since_terminate += 1
-        #     reward = rew()#prior_state)  # Receive imediate reward r
-        #     if r > epsilon:  # Exploit
-        #         action = Q_lookup_action(state)
-        #     else:
-        #         action = random.choice(actions)

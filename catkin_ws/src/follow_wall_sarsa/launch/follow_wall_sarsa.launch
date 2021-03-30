@@ -1,6 +1,6 @@
 <launch>
     <arg name="world_file" default="worlds/largemaze-triton-lidar.world"/>
-  
+    <arg name="train" default="False"/>
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
       <arg name="use_sim_time" value="true"/>
       <arg name="debug" value="false "/>  <!-- false for real training, true for debugging -->
@@ -16,6 +16,6 @@
         args="0 0 0 0 -1.58 1.58 camera_link triton_link 50" />
 
     <node pkg="stingray_sim" name="path_drawing" type="draw_path.py"/>
-    <node pkg="follow_wall_sarsa" name="follow_wall_sarsa" type="follow_wall_sarsa.py" output="screen"/>
+    <node pkg="follow_wall_sarsa" name="follow_wall_sarsa" args="$(arg train)" type="follow_wall_sarsa.py" output="screen"/>
 
 </launch>
