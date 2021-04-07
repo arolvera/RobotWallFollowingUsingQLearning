@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 import sys
-import rospy
 import math
+import rospy
 import random
 from std_msgs.msg import String
+from geometry_msgs.msg import Pose2D
 from sensor_msgs.msg import LaserScan
 from gazebo_msgs.msg import ModelState, ModelStates
-from geometry_msgs.msg import Pose2D
-
 sys.dont_write_bytecode = True
 
 args = rospy.myargv(argv=sys.argv)
@@ -60,7 +59,7 @@ if train:
 
 else:
     from qtable_q import q_table
-
+    
 class State:
     def __init__(self, left=None, front=None, rightfront = None, right = None, orientation = None):
         self.left = left
@@ -72,6 +71,8 @@ class State:
 pose_x = 0
 pose_y = 0
 pose_z = 0
+
+rew_data = []
 
 # Define initial state
 state = State()
@@ -96,9 +97,17 @@ def reset_robot():
     msg_set_model_state.pose.orientation.w = 1
     pub_set_model_state.publish(msg_set_model_state)
 
+# def rew():  # Return immediate reward for the state the robot is in
+#     if state.right == "tooclose" or state.right == "toofar" or state.front == "tooclose" or state.left == "close":
+#         reward = -1
+#     else:
+#         reward = 0
+#     return reward
+
+
 def rew():  # Return immediate reward for the state the robot is in
-    if state.right == "tooclose" or state.right == "toofar" or state.front == "tooclose" or state.left == "close":
-        reward = -1
+    if state.right == "medium" and state.front != "tooclose" and state.left != "close":
+        reward = 1
     else:
         reward = 0
     return reward
@@ -249,18 +258,18 @@ def main():
     time_step = 0
     stuck_buffer_size = 3
     training_complete = False
+    rew_acc = 0
+    rew_acc_cnt = 0
     prior_state = State()
     rospy.init_node("follow_wall_q", anonymous=True)
     rate = rospy.Rate(20)  # 20hz
     rospy.Subscriber("/scan", LaserScan, scan_callback)
     rospy.Subscriber("/gazebo/model_states", ModelStates, pose_callback)
     timestep_duration = rospy.Duration(0.5)  # One half second
-     
     i = 0
     while i < 100: # Need a short delay
         i += 1
         rate.sleep()
-
     while not rospy.is_shutdown() and not training_complete:  # Main loop
         terminate = False
         reset_robot()  # Reset robot pose
@@ -268,6 +277,9 @@ def main():
         prior_poses_x = [0, 0, 0]
         timesteps_since_terminate = 0
         r1 = random.uniform(0, 1)
+        rew_data.append((episode_number, rew_acc))
+        rew_acc = 0
+        rew_acc_cnt = 0
         while not terminate and not training_complete:  # Episode loop    
             if train:        
                 r = random.uniform(0, 1)
@@ -290,6 +302,10 @@ def main():
                     action = execute_random_action(timestep_duration)
                     timesteps_since_terminate += 1
                 reward = rew()   # Receive immediate reward r
+                rew_acc_cnt+=1
+                if rew_acc_cnt <= 150: 
+                    rew_acc+=reward
+
                 update_q_table(discount_factor, learning_rate, action, reward, prior_state)
                 print "\n"
                 print "Epsilon is", epsilon
@@ -299,11 +315,14 @@ def main():
                 print "Max timestep since terminate:", max_timestep
                 if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
                     terminate = True
-                elif time_step > 30000:  # 30000 timesteps is sufficient
+                elif time_step > 20000:  # 30000 timesteps is sufficient
                     training_complete = True
-                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/qtable_q.py","w")  # Write learned policy to file
-                    f.write("q_table = " + str(q_table))
-                    f.close()
+                    # f1 = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/qtable_q.py","w")  # Write learned policy to file
+                    # f1.write("q_table = " + str(q_table))
+                    # f1.close()
+                    f2 = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/rew_data_q.py","w")  # Write learned policy to file
+                    f2.write("rew_data = " + str(rew_data))
+                    f2.close()
                     print "Training Complete, qtable_q.py saved"
 
                 time_step += 1
