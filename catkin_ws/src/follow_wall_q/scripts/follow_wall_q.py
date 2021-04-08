@@ -97,17 +97,9 @@ def reset_robot():
     msg_set_model_state.pose.orientation.w = 1
     pub_set_model_state.publish(msg_set_model_state)
 
-# def rew():  # Return immediate reward for the state the robot is in
-#     if state.right == "tooclose" or state.right == "toofar" or state.front == "tooclose" or state.left == "close":
-#         reward = -1
-#     else:
-#         reward = 0
-#     return reward
-
-
 def rew():  # Return immediate reward for the state the robot is in
-    if state.right == "medium" and state.front != "tooclose" and state.left != "close":
-        reward = 1
+    if state.right == "tooclose" or state.right == "toofar" or state.front == "tooclose" or state.left == "close":
+        reward = -1
     else:
         reward = 0
     return reward
@@ -259,13 +251,13 @@ def main():
     stuck_buffer_size = 3
     training_complete = False
     rew_acc = 0
-    rew_acc_cnt = 0
     prior_state = State()
     rospy.init_node("follow_wall_q", anonymous=True)
     rate = rospy.Rate(20)  # 20hz
     rospy.Subscriber("/scan", LaserScan, scan_callback)
     rospy.Subscriber("/gazebo/model_states", ModelStates, pose_callback)
     timestep_duration = rospy.Duration(0.5)  # One half second
+    timesteps_since_terminate = 0
     i = 0
     while i < 100: # Need a short delay
         i += 1
@@ -277,9 +269,10 @@ def main():
         prior_poses_x = [0, 0, 0]
         timesteps_since_terminate = 0
         r1 = random.uniform(0, 1)
-        rew_data.append((episode_number, rew_acc))
+        if timesteps_since_terminate != 0:
+            rew_data.append((episode_number, rew_acc/timesteps_since_terminate))
         rew_acc = 0
-        rew_acc_cnt = 0
+        timesteps_since_terminate = 0
         while not terminate and not training_complete:  # Episode loop    
             if train:        
                 r = random.uniform(0, 1)
@@ -315,14 +308,14 @@ def main():
                 print "Max timestep since terminate:", max_timestep
                 if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
                     terminate = True
-                elif time_step > 20000:  # 30000 timesteps is sufficient
+                elif time_step > 30000:  # 30000 timesteps is sufficient
                     training_complete = True
-                    # f1 = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/qtable_q.py","w")  # Write learned policy to file
-                    # f1.write("q_table = " + str(q_table))
-                    # f1.close()
-                    f2 = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/rew_data_q.py","w")  # Write learned policy to file
-                    f2.write("rew_data = " + str(rew_data))
-                    f2.close()
+                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/qtable_q.py","w")  # Write learned policy to file
+                    f.write("q_table = " + str(q_table))
+                    f.close()
+                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/rew_data_q.py","w")  # Write learned policy to file
+                    f.write("rew_data_q = " + str(rew_data))
+                    f.close()
                     print "Training Complete, qtable_q.py saved"
 
                 time_step += 1

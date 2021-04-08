@@ -16,7 +16,8 @@ if str(args[1]) == "True":
 else:
     train = False
 
-if train:    
+if train:  
+
     states_left = [
         "left-close", 
         "left-far"
@@ -71,6 +72,8 @@ class State:
 pose_x = 0
 pose_y = 0
 pose_z = 0
+
+rew_data = []
 
 # Define initial state
 state = State()
@@ -248,6 +251,7 @@ def main():
     episode_number = 0
     time_step = 0
     stuck_buffer_size = 3
+    rew_acc = 0
     actions = ["left", "forward", "right"]
     training_complete = False
     prior_state = State()
@@ -256,22 +260,24 @@ def main():
     rospy.Subscriber("/scan", LaserScan, scan_callback)
     rospy.Subscriber("/gazebo/model_states", ModelStates, pose_callback)
     timestep_duration = rospy.Duration(0.5)  # One half second
-     
+    timesteps_since_terminate = 0
     i = 0
     while i < 100: # Need a short delay
         i += 1
         rate.sleep()
-
     while not rospy.is_shutdown() and not training_complete:  # Main loop
         terminate = False
         reset_robot()  # Reset robot pose
         prior_poses_y = [0, 0, 0]
         prior_poses_x = [0, 0, 0]
-        timesteps_since_terminate = 0      
         if random.uniform(0, 1) < epsilon_sarsa or train == False: # Exploit: choose best action
             action1 = Q_lookup_action(state)
         else: # Explore: pick random action
-            action1 = random.choice(actions)  
+            action1 = random.choice(actions) 
+        if timesteps_since_terminate!= 0:
+            rew_data.append((episode_number, rew_acc/timesteps_since_terminate))
+        rew_acc = 0
+        timesteps_since_terminate = 0      
         while not terminate and not training_complete:  # Episode loop  
             if train:          
                 print "\n"
@@ -288,6 +294,7 @@ def main():
                 epsilon = epsilon_0 * (d ** episode_number)
                 execute_action(timestep_duration, action1)
                 reward = rew()   # Receive immediate reward r
+                rew_acc+=reward
                 if random.uniform(0, 1) > epsilon:  # Exploit
                     action2 = Q_lookup_action(state)# dont execute action
                     timesteps_since_terminate += 1
@@ -308,6 +315,9 @@ def main():
                     training_complete = True
                     f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_sarsa/scripts/qtable_sarsa.py", "w")  # Write learned policy to file
                     f.write("q_table = " + str(q_table))
+                    f.close()
+                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_sarsa/scripts/rew_data_sarsa.py","w")  # Write learned policy to file
+                    f.write("rew_data_sarsa = " + str(rew_data))
                     f.close()
                     print "Training Complete, qtable_sarsa.py saved"
 
