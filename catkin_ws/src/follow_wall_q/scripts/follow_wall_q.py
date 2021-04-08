@@ -270,7 +270,7 @@ def main():
         timesteps_since_terminate = 0
         r1 = random.uniform(0, 1)
         if timesteps_since_terminate != 0:
-            rew_data.append((episode_number, rew_acc/timesteps_since_terminate))
+            rew_data.append((episode_number, float(rew_acc)/timesteps_since_terminate))
         rew_acc = 0
         timesteps_since_terminate = 0
         while not terminate and not training_complete:  # Episode loop    

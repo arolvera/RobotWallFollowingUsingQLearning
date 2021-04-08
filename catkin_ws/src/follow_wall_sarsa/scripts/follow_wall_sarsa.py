@@ -275,7 +275,7 @@ def main():
         else: # Explore: pick random action
             action1 = random.choice(actions) 
         if timesteps_since_terminate!= 0:
-            rew_data.append((episode_number, rew_acc/timesteps_since_terminate))
+            rew_data.append((episode_number, float(rew_acc)/timesteps_since_terminate))
         rew_acc = 0
         timesteps_since_terminate = 0      
         while not terminate and not training_complete:  # Episode loop  
