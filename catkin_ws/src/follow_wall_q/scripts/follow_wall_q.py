@@ -295,10 +295,7 @@ def main():
                     action = execute_random_action(timestep_duration)
                     timesteps_since_terminate += 1
                 reward = rew()   # Receive immediate reward r
-                rew_acc_cnt+=1
-                if rew_acc_cnt <= 150: 
-                    rew_acc+=reward
-
+                rew_acc+=reward
                 update_q_table(discount_factor, learning_rate, action, reward, prior_state)
                 print "\n"
                 print "Epsilon is", epsilon
