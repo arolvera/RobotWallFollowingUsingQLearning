@@ -1,6 +1,6 @@
 # Reinforcment Learning for Robot Navigation
 
-In thiswork we implement multiple
+In this work we implement multiple
 reinforcement learning algorithms for the purpose of teaching
 a robot to learn how to autonomously follow along a wall
 with no need for human intervention. Using ROS a Triton
