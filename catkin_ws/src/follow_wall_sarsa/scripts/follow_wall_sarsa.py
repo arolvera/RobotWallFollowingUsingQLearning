@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import os
 import sys
 import rospy
 import math
@@ -261,9 +263,7 @@ def main():
     rospy.Subscriber("/gazebo/model_states", ModelStates, pose_callback)
     timestep_duration = rospy.Duration(0.5)  # One half second
     timesteps_since_terminate = 0
-    i = 0
-    while i < 100: # Need a short delay
-        i += 1
+    for i in range(100): # Need a short delay
         rate.sleep()
     while not rospy.is_shutdown() and not training_complete:  # Main loop
         terminate = False
@@ -313,12 +313,15 @@ def main():
                     terminate = True
                 elif time_step > 30000: # 30000 timesteps is sufficient
                     training_complete = True
-                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_sarsa/scripts/qtable_sarsa.py", "w")  # Write learned policy to file
-                    f.write("q_table = " + str(q_table))
-                    f.close()
-                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_sarsa/scripts/rew_data_sarsa.py","w")  # Write learned policy to file
-                    f.write("rew_data_sarsa = " + str(rew_data))
-                    f.close()
+                    # Write learned policy to file
+                    file = open(os.path.dirname(os.path.realpath(__file__)) + "/qtable_sarsa.py","w") 
+                    file.write("q_table = " + str(q_table))
+                    file.close()
+                    # Collect normalized accumulated reward
+                    file = open(os.path.dirname(os.path.realpath(__file__)) + "/rew_data_sarsa.py","w") 
+                    file.write("rew_data_sarsa = " + str(rew_data))
+                    file.close()
+
                     print "Training Complete, qtable_sarsa.py saved"
 
                 time_step += 1

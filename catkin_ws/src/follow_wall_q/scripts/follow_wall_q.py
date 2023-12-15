@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import os
 import sys
 import math
 import rospy
@@ -258,16 +260,13 @@ def main():
     rospy.Subscriber("/gazebo/model_states", ModelStates, pose_callback)
     timestep_duration = rospy.Duration(0.5)  # One half second
     timesteps_since_terminate = 0
-    i = 0
-    while i < 100: # Need a short delay
-        i += 1
+    for i in range(100): # Need a short delay
         rate.sleep()
     while not rospy.is_shutdown() and not training_complete:  # Main loop
         terminate = False
         reset_robot()  # Reset robot pose
         prior_poses_y = [0, 0, 0]
         prior_poses_x = [0, 0, 0]
-        timesteps_since_terminate = 0
         r1 = random.uniform(0, 1)
         if timesteps_since_terminate != 0:
             rew_data.append((episode_number, float(rew_acc)/timesteps_since_terminate))
@@ -307,12 +306,14 @@ def main():
                     terminate = True
                 elif time_step > 30000:  # 30000 timesteps is sufficient
                     training_complete = True
-                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/qtable_q.py","w")  # Write learned policy to file
-                    f.write("q_table = " + str(q_table))
-                    f.close()
-                    f = open("/home/anthony/Mines/CSCI573/project2/catkin_ws/src/follow_wall_q/scripts/rew_data_q.py","w")  # Write learned policy to file
-                    f.write("rew_data_q = " + str(rew_data))
-                    f.close()
+                    # Write learned policy to file
+                    file = open(os.path.dirname(os.path.realpath(__file__)) + "/q_table_q.py","w") 
+                    file.write("q_table = " + str(q_table))
+                    file.close()
+                    # Collect normalized accumulated reward
+                    file = open(os.path.dirname(os.path.realpath(__file__)) + "/rew_data_q.py","w") 
+                    file.write("rew_data_q = " + str(rew_data))
+                    file.close()
                     print "Training Complete, qtable_q.py saved"
 
                 time_step += 1
