@@ -95,7 +95,7 @@ def reset_robot():
     msg_set_model_state.pose.position.z = 0
     msg_set_model_state.pose.orientation.x = 0
     msg_set_model_state.pose.orientation.y = 0
-    msg_set_model_state.pose.orientation.z = 0
+    msg_set_model_state.pose.orientation.z = random.uniform(-math.pi, math.pi)
     msg_set_model_state.pose.orientation.w = 1
     pub_set_model_state.publish(msg_set_model_state)
 
@@ -307,7 +307,7 @@ def main():
                 elif time_step > 30000:  # 30000 timesteps is sufficient
                     training_complete = True
                     # Write learned policy to file
-                    file = open(os.path.dirname(os.path.realpath(__file__)) + "/q_table_q.py","w") 
+                    file = open(os.path.dirname(os.path.realpath(__file__)) + "/qtable_q.py","w") 
                     file.write("q_table = " + str(q_table))
                     file.close()
                     # Collect normalized accumulated reward

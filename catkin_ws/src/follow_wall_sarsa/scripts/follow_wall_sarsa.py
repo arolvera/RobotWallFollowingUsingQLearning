@@ -96,7 +96,7 @@ def reset_robot():
     msg_set_model_state.pose.position.z = 0
     msg_set_model_state.pose.orientation.x = 0
     msg_set_model_state.pose.orientation.y = 0
-    msg_set_model_state.pose.orientation.z = 0
+    msg_set_model_state.pose.orientation.z = random.uniform(-math.pi, math.pi)
     msg_set_model_state.pose.orientation.w = 1
     pub_set_model_state.publish(msg_set_model_state)
 
