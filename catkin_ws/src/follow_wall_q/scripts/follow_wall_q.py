@@ -243,11 +243,14 @@ def execute_exploited_action(duration, prior_state):
     return action
 
 def main():
+    first_1000 = False
+    timestep_1000 = -1
+    episode_1000 = -1
     max_timestep = 0
-    discount_factor = 0.8
-    learning_rate = 0.2
-    epsilon_0 = 0.99
-    d = 0.99
+    discount_factor = 0.9
+    learning_rate = 0.1
+    epsilon_0 = 0.994
+    d = 0.994
     episode_number = 0
     time_step = 0
     stuck_buffer_size = 3
@@ -300,11 +303,17 @@ def main():
                 print "Epsilon is", epsilon
                 if timesteps_since_terminate > max_timestep:
                     max_timestep = timesteps_since_terminate
+                if timesteps_since_terminate == 1000 and not first_1000:
+                    episode_1000 = episode_number
+                    timestep_1000 = time_step
+                    first_1000 =  True
+                print "\n"
+                print "Episode 1000:", episode_1000, " Timestep 1000: ", timestep_1000
                 print "\n"
                 print "Max timestep since terminate:", max_timestep
                 if (max(prior_poses_x) - min(prior_poses_x)) < 0.05 and (max(prior_poses_y) - min(prior_poses_y)) < 0.05 or pose_z > 0.05:  # Robot is stuck x, y havent moved past some threshold across past three timesteps
                     terminate = True
-                elif time_step > 30000:  # 30000 timesteps is sufficient
+                elif time_step > 50000:  # 30000 timesteps is sufficient
                     training_complete = True
                     # Write learned policy to file
                     file = open(os.path.dirname(os.path.realpath(__file__)) + "/qtable_q.py","w") 

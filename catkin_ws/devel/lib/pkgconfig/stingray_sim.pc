@@ -1,4 +1,4 @@
-prefix=/home/anthony/Mines/CSCI573/project2/catkin_ws/devel
+prefix=/RobotWallFollowingUsingQLearning/catkin_ws/devel
 
 Name: stingray_sim
 Description: Description of stingray_sim

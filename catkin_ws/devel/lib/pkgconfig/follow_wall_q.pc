@@ -1,4 +1,4 @@
-prefix=/home/anthony/Mines/CSCI573/project2/catkin_ws/devel
+prefix=/RobotWallFollowingUsingQLearning/catkin_ws/devel
 
 Name: follow_wall_q
 Description: Description of follow_wall_q
